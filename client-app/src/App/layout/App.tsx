@@ -14,14 +14,15 @@ function App() {
   >(undefined);
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     agent.Activities.list().then((response) => {
       let activities: Activity[] = [];
-      response.forEach(activity => {
-        activity.date = activity.date.split('T')[0];
+      response.forEach((activity) => {
+        activity.date = activity.date.split("T")[0];
         activities.push(activity);
-      })
+      });
       setActivities(activities);
       setLoading(false);
     });
@@ -45,21 +46,38 @@ function App() {
   }
 
   function handleDeleteActivity(id: string) {
+    setSubmitting(true);
+    agent.Activities.delete(id).then(()=>{
+      setActivities([...activities.filter(x=>x.id !== id)]);
+      setSubmitting(false);
+    })
     setActivities([...activities.filter((x) => x.id !== id)]);
   }
 
   function handleCreateOrEditActivity(activity: Activity) {
-    activity.id
-      ? setActivities([
+    setSubmitting(true);
+    if (activity.id) {
+      agent.Activities.update(activity).then(() => {
+        setActivities([
           ...activities.filter((x) => x.id !== activity.id),
           activity,
-        ])
-      : setActivities([...activities, { ...activity, id: uuid() }]);
-    setEditMode(false);
-    setSelectedActivity(activity);
+        ]);
+        setSelectedActivity(activity);
+        setEditMode(false);
+        setSubmitting(false);
+      });
+    } else {
+      activity.id = uuid();
+      agent.Activities.create(activity).then(() => {
+        setActivities([...activities, activity])
+        setSelectedActivity(activity);
+        setEditMode(false);
+        setSubmitting(false);
+      });
+    }
   }
 
-  if (loading) return <LoadingComponents content="Loading app"/>
+  if (loading) return <LoadingComponents content="Loading app" />;
 
   return (
     <Fragment>
@@ -75,6 +93,7 @@ function App() {
           closeForm={handleFormClose}
           createOrEdit={handleCreateOrEditActivity}
           deleteActivity={handleDeleteActivity}
+          submitting = {submitting}
         />
       </Container>
     </Fragment>
